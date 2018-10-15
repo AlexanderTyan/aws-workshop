@@ -1,0 +1,155 @@
+---
+title: 'LSDM Workshop: AWS-DevOps'
+author: "Alex C. Engler"
+date: "10/15/2018"
+output: html_document
+---
+
+## Workshop: Introduction to AWS & DevOps
+
+### What We Will Cover
+
+- Overview of the AWS Web Console
+- Launching an EC2 (Elastic Cloud Compute) Instance
+- SSH, Ports, and Security Groups
+- Installations in Linux Environments
+- AWS File Storage (S3, EBS, Instance Store, EFS)
+- The AWS Command Line Interface (CLI) and Boto3 SDK
+
+-----
+
+First, open the AWS Console and navigate to the Elastic Cloud Compute (EC2) page. There, proceed to launch a new instance.
+
+#### Choosing a Linux Distribution
+
+You must choose an operating system for the machine you are renting, and cannot change it once the instance is launched. While the AWS AMI (an Amazon-developed distribution of Linux based on RedHat) is best optimized and least-buggy working on AWS machinery, you might sometimes want to use Ubuntu so you have easier access to the [many packages available in the Debian environment](https://www.ubuntu.com/community/debian). This will be the case when we deploy Stanford's CoreNLP.
+
+For now, select 'Amazon Linux AMI 2018.03.0 (HVM), SSD Volume Type'.
+
+#### Choosing an Instance Type.
+
+An AWS instance is a pre-set combination of hardware, mostly focussed on memory and processors. Different families of instance types are specialized for different tasks. For example, the C-family of instances is optimized for computation. The R-family of instances is best optimized for memory. AWS document has lots of material [on their instance types](https://aws.amazon.com/ec2/instance-types/) as well as [their pricing](https://aws.amazon.com/ec2/pricing/), which is billed per-second in most cases.
+
+For now, select 't2.medium'.
+
+#### AWS Storage
+
+There are four common storage options available for EC2, each useful in different circumstances. The [AWS EC2 Storage Guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html) is particularly useful in determining what you need.
+
+- Instance Store - virtualized block storage attached (physically) to the instance, but are ephemeral.
+- Elastic Block Storage (EBS) - virtualized block storage that can persist beyond the life of the instance.
+- AWS Simple Storage System (S3) - universally available object storage. 
+- AWS Elastic File System (EFS) - hierarchical file storage that can be mounted onto one or multiples instances.
+
+For this, you can leave the default storage settings as is.
+
+#### Configuring the Security Group
+
+A security group is a set of configuration settings that detail what ports can be accessed over the public internet. You should open ports:
+
+- 22 for SSH
+- 80 and 443 for HTTP and HTTPS
+- 8787 for RStudio Server
+- 3838 for R Shiny
+
+
+#### AWS Command Line Interface (CLI)
+
+`aws help`
+`aws ec2 help`
+
+`aws ec2 describe-instances`
+`aws ec2 describe-instances help`
+
+The `--query` argument allows you to explore the output from AWS CLI commands.
+
+`aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,ImageId]'`
+
+Get the Public DNS Name:
+
+`aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicDnsName'`
+
+Return the Availability Zone, State, Instance Type, KeyName, and Instance Id of all AWS EC2 instances as text, then find those that contain 'running'.
+
+`aws ec2 describe-instances --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceType, KeyName, InstanceId]' --output text |  grep running`
+
+
+#### SSH (Secure Shell) Protocol
+
+SSH is an [implementation of public key cryptography](https://winscp.net/eng/docs/ssh_keys ). The key you have downloaded is the private key, which you should not share with anyone else. The public key is registered to the remote server (the EC2 isntance) and is used to validate your private key, ensuring you are who you say you are and granting access to the remote server. Together, these keys make up a key-pair.
+
+SHH encrypts data exchanged across an insecure network – allowing you to easily and securely work across multiple computers from one location. While Mac OsX has a native SSH client, Windows users will need to [download Putty](https://www.putty.org/).
+
+You likely need to change the permissions for your AWS key:
+
+```bash
+chmod 400 aws-workshop.pem`
+```
+
+Then SSH into the EC2 Node (the -i flag creates an interactive shell). `ec2-user` is the default user for AWS Amazon Machine Images, whereas an Ubuntu Linux machine will have a default user of `ubuntu` and the default user name of `hadoop` for AMS Elastic MapReduce (EMR). 
+
+```bash
+ssh -i keyname.pem ec2-user@instance-DNS
+```
+
+ssh -i aws-workshop.pem ec2-user@ec2-18-216-143-106.us-east-2.compute.amazonaws.com
+
+
+#### Installations in Linux
+
+he AWS Linux AMI is based off of Red Hat, which means it uses Red Hat’s package installation systems. Specifically yum (Yellowdog Update Modifier) and rpm (RedHat Package Manager). We will use yum for now, as it adds package management features on top of rpm (however note yum lets you install .rpm files). You can read more about [basic yum functionality here](https://www.thegeekstuff.com/2011/08/yum-command-examples/?utm_source=feedburner).
+
+```bash
+sudo yum update 
+sudo yum install -y R
+```
+We can use `wget`, short for web-get, to download files from the internet. This can be used in conjunction with `yum install`, as you see below while installing RStudio Server.
+
+```bash
+wget https://download2.rstudio.org/rstudio-server-rhel-1.1.456-x86_64.rpm 
+ls
+```
+
+If you look at much open-source software, you will find instructions for installing that software on various Linux distributions. For instance, you can see instructions for installing RStudio Server on [several different Linux distributions on the RStudio website](https://www.rstudio.com/products/rstudio/download-server/).
+
+Now we use yum to install RStudio server.
+
+```bash
+sudo yum install rstudio-server-rhel-1.1.456-x86_64.rpm -y
+```
+And we can now remove the `.rpm` file.
+
+```bash
+rm rstudio-server-rhel-1.1.456-x86_64.rpm
+```
+Next, we can execute some R code from the command line, in this case, installing several pertinent packages:
+
+```bash
+sudo R -e "install.packages(c('shiny','doParallel'), repos='http://cran.rstudio.com/')"
+```
+
+We can also add a new user to the machine, which is automatically granted R Studio access (this is a useful feature of R Studio).
+
+```bash
+sudo useradd ec2-user
+echo ec2-user:RisGreat | sudo chpasswd 
+```
+
+You can use the AWS CLI in your remote machine as well, below copying in a file from  one of my S3 buckets. This is possible since I made made this S3 bucket public, but you could also grant your remote machine with AWS credentials. Given the incredibly open access settings we created for this machine, that is likely to be a very bad idea.
+
+```bash
+aws s3 cp s3://lsdm-util/parallel-RF.R ./
+```
+
+
+Instead, let's install Git
+
+```bash
+sudo yum install -y git
+```
+
+And we can use git clone to grab a repository with the pertinent R code:
+
+```bash
+git clone https://github.com/alexcengler/
+```
