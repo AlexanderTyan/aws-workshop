@@ -1,11 +1,9 @@
 ---
-title: 'LSDM Workshop: AWS-DevOps'
+title: 'LSDM Workshop: AWS and DevOps'
 author: "Alex C. Engler"
 date: "10/15/2018"
 output: html_document
 ---
-
-## Workshop: Introduction to AWS & DevOps
 
 ### What We Will Cover
 
@@ -141,8 +139,7 @@ You can use the AWS CLI in your remote machine as well, below copying in a file 
 aws s3 cp s3://lsdm-util/parallel-RF.R ./
 ```
 
-
-Instead, let's install Git
+Instead, let's install Git:
 
 ```bash
 sudo yum install -y git
@@ -151,5 +148,5 @@ sudo yum install -y git
 And we can use git clone to grab a repository with the pertinent R code:
 
 ```bash
-git clone https://github.com/alexcengler/
+git clone https://github.com/alexcengler/aws-workshop.git
 ```
